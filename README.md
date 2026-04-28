@@ -1,61 +1,72 @@
 # Open Poker Skill for Claude Code
 
-A Claude Code skill that helps you build an autonomous poker bot for [Open Poker](https://openpoker.ai) — a free competitive platform where AI bots play No-Limit Texas Hold'em in 2-week seasons, climbing a public leaderboard for prizes.
+A Claude Code command that helps you build and harden a self-hosted bot for
+[Open Poker](https://openpoker.ai), a free competitive No-Limit Texas Hold'em
+platform where AI bots play in 2-week seasons.
 
 ## Install
 
-1. Copy `openpoker.md` to your Claude Code commands folder:
+Copy `openpoker.md` to your Claude Code commands folder.
 
-**Mac/Linux:**
+Mac/Linux:
+
 ```bash
 mkdir -p ~/.claude/commands
 cp openpoker.md ~/.claude/commands/
 ```
 
-**Windows:**
-```bash
+Windows:
+
+```bat
 mkdir %USERPROFILE%\.claude\commands 2>nul
 copy openpoker.md %USERPROFILE%\.claude\commands\
 ```
 
-2. Start Claude Code and type `/openpoker`.
+Then start Claude Code and run:
 
-## What it does
+```text
+/openpoker
+```
+
+## What It Does
 
 When you run `/openpoker`, Claude will:
 
-1. Fetch the latest Open Poker API docs (cached locally for 3 days)
-2. Interview you about your bot:
-   - What language do you want to build in?
-   - Do you have your API key?
-   - How do you want your bot to play? (Aggressive, conservative, bluff-heavy, GTO, adaptive, etc.)
-   - How complex should the first version be?
-3. Build your bot based on YOUR answers — not a generic template
-4. Share production-tested gotchas discovered from running bots against the live server
+1. Fetch the latest Open Poker API docs from `https://docs.openpoker.ai/llms-full.txt`.
+2. Ask what language, API key, strategy style, and first-version complexity you want.
+3. Build a bot around your strategy, not a generic preset.
+4. Include current production gotchas for WebSocket auth, `hand_id`, `turn_token`,
+   rebuys, reconnects, table close behavior, and multiple-bot policy.
 
-## What you need
+## What You Need
 
-- **An Open Poker account** — Register via API or at [openpoker.ai](https://openpoker.ai)
-- **Your API key** — Shown once at registration, save it
-- **That's it** — no wallet, no money, no SDK. Any language with WebSocket + JSON works.
+- An Open Poker account or bot registration.
+- An API key. It is shown once at registration, so save it.
+- A language/runtime with WebSocket plus JSON support.
 
-## What you'll build
+Gameplay is free with virtual chips. Pro is optional and unlocks extras like
+analytics, hosted/no-code controls, queue priority, and up to 5 portfolio bots
+for testing multiple strategies.
 
-The skill guides you through creating a bot with:
+## Current Policy Notes
 
-- **WebSocket client** — connects, authenticates, auto-reconnects
-- **Game state tracker** — tracks cards, pot, stacks, positions
-- **Strategy engine** — YOUR strategy, not a prescribed one
-- **Main loop** — handles all server messages, season transitions, rebuys
+- Free users may operate 1 bot.
+- Pro users may operate up to 5 portfolio bots.
+- Same-owner bots are blocked from sitting together.
+- Linked or colluding bot groups can be frozen or banned as a group, including
+  the main account.
+- Multiple bots are for strategy testing, not collusion or account farming.
 
-## Platform overview
+## Current Protocol Notes
 
-- Free to play — virtual chips, 2-week seasons
-- 5,000 starting chips, 10/20 blinds, no rake
-- Public leaderboard with prizes for top 3
-- 6-max tables (2-6 players)
-- All bot names visible — no anonymization
-- Optional $3 Season Pass for analytics (not needed to play)
+Action messages must include all of:
+
+- `hand_id` from the current `your_turn`
+- `turn_token` from the current `your_turn`
+- unique `client_action_id`
+
+Older bots that send only `{type, action, turn_token}` must be updated. Missing
+or stale `hand_id` values are rejected as `stale_hand_action` before chips move.
 
 ## Uninstall
 

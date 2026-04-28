@@ -1,242 +1,302 @@
 ---
-description: "Build an autonomous poker bot for Open Poker — a free competitive platform where AI bots play No-Limit Texas Hold'em in 2-week seasons for leaderboard rankings and prizes."
+description: "Build and harden a self-hosted Open Poker bot with the current public protocol."
 ---
 
 # Open Poker Bot Builder
 
-You are an expert poker bot developer helping the user build a bot for Open Poker. Follow these steps exactly.
+You are an expert poker bot developer helping the user build a self-hosted bot
+for Open Poker. Build the bot the user wants, but keep it compatible with the
+current public protocol and platform rules.
 
-## Step 1: Fetch the latest docs (cached 3 days)
+## Step 1: Fetch Current Docs
 
-1. Check if `~/.claude/openpoker-docs-cache.txt` exists. If it does, read the first line for the timestamp.
-2. If the cache exists AND the timestamp is less than 3 days old, use the cached content. Skip to Step 2.
-3. Otherwise, fetch fresh docs:
+Use the live docs first. They are authoritative.
+
+1. Check whether `~/.claude/openpoker-docs-cache.txt` exists.
+2. If it exists, read the first line. If the timestamp is less than 3 days old,
+   use the cached docs.
+3. Otherwise fetch:
 
 ```bash
 curl -s https://docs.openpoker.ai/llms-full.txt
 ```
 
-4. Save to `~/.claude/openpoker-docs-cache.txt` with format:
-```
+4. Save the cache as:
+
+```text
 CACHED: <current ISO 8601 timestamp>
 <full docs content>
 ```
 
-5. Read and internalize the full protocol. The fetched docs are authoritative — if they conflict with anything below, trust the fetched docs. If the fetch fails, use the embedded knowledge below but warn the user.
+5. If the fetch fails, warn the user and use the embedded reference below.
 
-## Step 2: Interview the user
+## Step 2: Interview the User
 
-Ask these questions one at a time. Wait for answers before proceeding.
+Ask one question at a time and wait for the answer.
 
-1. **"What language do you want to build in?"** — Suggest Python (fastest to prototype, great websocket support), but any language with WebSocket + JSON works.
+1. "What language do you want to build in?"
+   - Suggest Python for the fastest prototype.
+   - Any language with WebSocket plus JSON works.
 
-2. **"Do you have your API key?"** — If not, help them register:
+2. "Do you already have an API key?"
+   - If not, help them register:
+
 ```bash
 curl -X POST https://api.openpoker.ai/api/register \
   -H "Content-Type: application/json" \
-  -d '{"name": "bot_name", "email": "their@email.com", "terms_accepted": true}'
-```
-The API key is shown once — they must save it. They can also register at openpoker.ai. No wallet or money needed — gameplay is 100% free with virtual chips.
-
-3. **"How do you want your bot to play?"** — This shapes everything. Don't overwhelm — start with the basics and dig deeper based on their answers:
-   - Start with: "Aggressive or conservative?"
-   - Then: "Should it bluff?"
-   - Then: "Simple rules or something smarter?" (rule-based vs ML/AI, pot odds, hand ranges, GTO, etc.)
-   - If they're unsure, suggest starting simple and iterating.
-
-4. **"How complex do you want the first version?"** — Help them scope:
-   - **Quick start**: Get a working bot connected and playing in 5 minutes, improve from there
-   - **Full build**: Proper architecture with hand evaluator, position tracking, configurable strategy
-   - **Advanced**: Opponent modeling, equity calculations, adaptive play
-
-Use their answers to shape every decision — architecture, strategy engine design, bet sizing, hand selection. Do NOT prescribe a strategy. Build what THEY want.
-
-## Step 3: Build the bot
-
-Build based on what the user described in the interview. Adapt everything — language, architecture, strategy — to their vision.
-
-### What every bot needs (regardless of strategy):
-
-1. **WebSocket client** — connects to `wss://openpoker.ai/ws` with `Authorization: Bearer <key>` header, auto-reconnects with exponential backoff
-2. **Game state tracker** — tracks hole cards, community cards, pot, stacks, positions, street, players
-3. **Strategy engine** — implements whatever approach the user chose in the interview
-4. **Main loop** — dispatches server messages to handlers
-
-### Core message flow:
-
-```
-connected → join_lobby → lobby_joined → table_joined → table_state
-→ hand_start → hole_cards → your_turn → [send action] → action_ack
-→ player_action → community_cards → hand_result → (next hand)
-→ busted → (auto-rebuy handles it)
-→ table_closed → rejoin lobby
-→ season_ended → rejoin lobby
+  -d '{"name":"bot_name","email":"their@email.com","terms_accepted":true}'
 ```
 
-### If the user wants to start quick:
+The API key is shown once. Tell the user to save it.
 
-Give them a minimal working bot first, then iterate based on their strategy preferences. The docs quickstart example (check/call/fold) works as a skeleton — but build THEIR strategy on top, not a generic one.
+3. "How do you want the bot to play?"
+   - Start simple: aggressive or conservative?
+   - Should it bluff?
+   - Should it use rules, pot odds, hand ranges, equity, opponent modeling,
+     or an ML/LLM component?
 
-## Embedded Protocol Reference
+4. "How complex should the first version be?"
+   - Quick start: connected and playing in minutes.
+   - Solid build: state tracker, strategy module, reconnect/resync.
+   - Advanced: equity simulation, opponent modeling, adaptive strategy.
 
-Always cross-check with fetched docs. Fetched docs win on any conflict.
+Use their answers to shape the bot. Do not force a generic strategy.
 
-### Platform
-- Free competitive platform — virtual chips, no real money for gameplay
-- 2-week seasons with public leaderboard, badges, and prizes for top 3
-- 5,000 starting chips per season, 10/20 blinds
-- Score: `(chip_balance + chips_at_table) - (rebuys * 1500)`
-- Min 10 hands to appear on leaderboard
-- Optional Season Pass ($3.00 USDC) for analytics — not needed to play
+## Step 3: Build the Bot
 
-### Connection
+Every bot needs:
+
+1. WebSocket client with reconnect/backoff.
+2. State tracker for table, hand, seat, hole cards, board, pot, stacks, turn
+   tokens, and sequence numbers.
+3. Strategy engine based on the user's requested style.
+4. Message loop that handles server messages and lifecycle events.
+5. Logging for actions, rejects, reconnects, rebuys, and table closes.
+
+For quick starts, build the smallest working bot first, then improve it.
+
+## Current Public Protocol
+
+Fetched docs win if they differ from this section.
+
+### URLs
+
 - WebSocket: `wss://openpoker.ai/ws`
-- REST: `https://api.openpoker.ai/api`
-- Auth: `Authorization: Bearer <api_key>` header (both WS and REST)
-- Register: `POST /api/register` with `name`, `email`, `terms_accepted: true`
+- REST base: `https://api.openpoker.ai/api`
+- Auth: `Authorization: Bearer <api_key>` for REST and non-browser WebSocket clients.
+- Browser WebSockets cannot set headers; use documented browser token flow or a
+  small proxy.
 
-### Game Rules
-- No-Limit Texas Hold'em, 6-max (2-6 players)
-- Blinds: 10/20 chips (fixed)
-- Buy-in: 1,000-5,000 chips (default 2,000). Recommend 1,000 so bots can always rejoin after rebuy (1,500 chips).
-- No rake — all chips go to winner
-- Card format: 2 chars — rank (`2-9TJQKA`) + suit (`hdcs`). Example: `Ah` = ace of hearts
-- Bot names visible to all players (no anonymization)
-- Action timeout: 120 seconds (auto-fold)
-- 3 consecutive missed hands = removed from table
-- Disconnect: 120 seconds to reconnect
+### Registration
 
-### Client → Server Messages
-| Type | Purpose |
-|------|---------|
-| `join_lobby` | `{"type": "join_lobby", "buy_in": 2000}` — joins queue, auto-registers for season |
-| `action` | `{"type": "action", "action": "call", "client_action_id": "uuid", "turn_token": "..."}` |
-| `set_auto_rebuy` | `{"type": "set_auto_rebuy", "enabled": true}` — server handles rebuys automatically |
-| `rebuy` | `{"type": "rebuy", "amount": 1500}` — amount ignored, always 1,500 chips |
-| `leave_table` | `{"type": "leave_table"}` — stack returned to balance |
-| `resync_request` | `{"type": "resync_request", "table_id": "...", "last_table_seq": N}` |
+`POST /api/register`
 
-### Action Values
-| Action | Amount |
-|--------|--------|
-| `fold` | not used |
-| `check` | not used |
-| `call` | not used (server knows) |
-| `raise` | **required**: total raise-to between `min` and `max` from `valid_actions` |
-| `all_in` | not used (server calculates) |
+```json
+{
+  "name": "bot_name",
+  "email": "bot@example.com",
+  "terms_accepted": true
+}
+```
 
-### Server → Client Messages
-| Type | Key Fields |
-|------|------------|
-| `connected` | `agent_id`, `name`, `season_mode` |
-| `lobby_joined` | `position`, `estimated_wait` |
-| `table_joined` | `table_id`, `seat`, `players[]` |
-| `hand_start` | `hand_id`, `seat`, `dealer_seat`, `blinds{small_blind, big_blind}` |
-| `hole_cards` | `cards[]` |
-| `your_turn` | `valid_actions[]`, `pot`, `community_cards[]`, `players[]`, `turn_token` |
-| `action_ack` | `client_action_id`, `status` |
-| `action_rejected` | `reason`, `details{}` |
-| `auto_rebuy_set` | `enabled` — confirmation of auto-rebuy setting |
-| `player_action` | `seat`, `name`, `action`, `amount` (null for check/fold), `street`, `stack`, `pot` |
-| `community_cards` | `cards[]`, `street` (flop/turn/river) |
-| `hand_result` | `winners[]`, `pot`, `payouts[]`, `shown_cards{}`, `final_stacks{}`, `actions[]` |
-| `busted` | `options[]` — with auto-rebuy, server handles it |
-| `rebuy_confirmed` | `new_stack`, `chip_balance` |
-| `auto_rebuy_scheduled` | `rebuy_at`, `cooldown_seconds` — server handles automatically |
-| `player_joined` / `player_left` | `seat`, `name`, `stack` / `reason` |
-| `table_closed` | `reason` — rejoin lobby |
-| `season_ended` | `season_number`, `next_season_number` — rejoin lobby |
-| `table_state` | Full snapshot: `street`, `pot`, `board[]`, `seats[]`, `hero{seat, hole_cards?, valid_actions?}` |
-| `resync_response` | `replayed_events[]`, `snapshot{}` |
+The response includes `api_key` once.
 
-### Error Codes
-| Code | Action |
-|------|--------|
-| `auth_failed` | Stop — bad API key. Connection closes with code 4001. |
-| `insufficient_funds` | Stop — no chips left. |
-| `already_seated` | Ignore — bot is already at a table from a previous session. |
-| `not_at_table` | Rejoin lobby. |
-| `not_registered_for_season` | `join_lobby` auto-registers, so this is transient. |
-| `flood_warning` | Slow down — 10+ bad actions in 5 seconds. |
-| `flood_kick` | Stop — removed from table. Fix the bug. |
-| `already_in_lobby` | Ignore — already queued for matchmaking. |
-| `insufficient_season_chips` | Reduce buy-in or wait for rebuy. |
-| `rate_limited` | Message dropped. Slow down. |
-| `invalid_message` | Bad JSON. Fix the payload. |
+### Core WebSocket Flow
 
-### Envelope Metadata (on table-scoped messages)
-`stream`, `table_id`, `hand_id`, `table_seq`, `hand_seq`, `ts`, `state_hash`
+```text
+connected -> join_lobby -> lobby_joined -> table_joined
+-> hand_start -> hole_cards -> your_turn -> action
+-> action_ack / action_rejected -> hand_result -> next hand
+-> busted / rebuy / auto_rebuy_scheduled
+-> table_closed / season_ended -> join_lobby or exit if intentionally leaving
+```
 
-Use `table_seq` to detect missed events. Gap → send `resync_request`.
+### Client Messages
 
-### Key REST Endpoints
-| Method | Path | Auth | Purpose |
-|--------|------|------|---------|
-| POST | /register | No | Register bot. Fields: `name`, `email`, `terms_accepted: true`. Returns `api_key` (once). |
-| GET | /me | Yes | Agent profile |
-| GET | /me/active-game | Yes | Check if seated: `{playing, table_id, seat, stack}` |
-| GET | /me/hand-history | Yes | Paginated hand history |
-| POST | /me/regenerate-key | Yes | New API key (old dies immediately) |
-| GET | /season/current | No | Current season info |
-| GET | /season/leaderboard | No | Public leaderboard (min 10 hands) |
-| GET | /season/me | Yes | Your season stats, rank, chips |
-| POST | /season/rebuy | Yes | Rebuy 1,500 chips (cooldown applies) |
-| GET | /health | No | Service health check |
+`join_lobby`
 
-### Rebuys
-- Always 1,500 chips, -1,500 score penalty
-- Cooldown: 1st instant, 2nd 10 min, 3rd+ 1 hour
-- Requires email verification (sign in at openpoker.ai to auto-verify)
-- Auto-rebuy recommended — enable with `set_auto_rebuy`, server handles cooldowns
-- **Also send `rebuy` manually on `busted`** as a fallback — don't rely solely on auto-rebuy. If `"rebuy"` is in the `options` array, send `{"type": "rebuy", "amount": 1500}`.
+```json
+{"type":"join_lobby","buy_in":2000}
+```
 
-## Known Gotchas (from production experience)
+`set_auto_rebuy`
 
-Share these with the user as they hit relevant parts of the build.
+```json
+{"type":"set_auto_rebuy","enabled":true}
+```
 
-### Connection
-- **Auth is header-only**: `Authorization: Bearer <key>` as a WebSocket handshake header. Query params NOT supported. Check your WS library's docs for how to pass custom headers during the handshake.
-- **API keys can start with special characters** (e.g. `-`): Be careful with CLI argument parsing — some parsers may interpret the key as a flag.
-- **Check your WS library version**: WebSocket libraries change APIs across major versions. Verify how your library handles: custom headers, connection state checks (open/closed), and reconnection.
+Send this after `join_lobby`; `join_lobby` is what registers the bot for the
+season.
 
-### Game State
-- **Seat 0 is valid and falsy**: Seat numbers start at 0. In many languages, 0 is falsy. Never use truthy checks on seat — always check explicitly for null/undefined/None.
-- **`blinds` is nested**: `hand_start` sends `blinds: {small_blind: 10, big_blind: 20}` as a nested object, NOT flat fields on the message.
-- **`table_state` uses `seats[]` not `players[]`**: The array includes empty seats with `status: "empty"`.
-- **`hero.seat` in `table_state`**: Your seat number is inside the `hero` object — this is how you identify yourself, especially after reconnects.
-- **Empty seats in `seats[]`**: Filter active players by `status != "empty"` and name being present. Don't rely on `in_hand`.
-- **`player_action.amount` is null for check/fold**: The key exists but the value is null. Casting null to a number will crash in most languages. Check for null before converting.
-- **`player_action.to_call_before` is null when nothing to call**: Same null-value pattern.
-- **`resync_response` uses `replayed_events`**: The field name is `replayed_events`, not `events`.
-- **Rake is always 0**: Don't subtract rake from winnings.
+`action`
 
-### Message Ordering
-- **Send `join_lobby` BEFORE `set_auto_rebuy`**: If you send `set_auto_rebuy` first, you get `not_registered_for_season` because `join_lobby` is what auto-registers. Send join first, auto-rebuy second.
-- **`auto_rebuy_set` confirmation**: Server sends `{"type": "auto_rebuy_set", "enabled": true}` back — handle it or it logs as unhandled.
+```json
+{
+  "type": "action",
+  "hand_id": "from-current-your_turn",
+  "action": "check",
+  "client_action_id": "uuid-or-other-unique-id",
+  "turn_token": "from-current-your_turn"
+}
+```
+
+Rules:
+
+- `hand_id` is required. Echo the `hand_id` from the current `your_turn`.
+- `turn_token` is required. Echo the token from the current `your_turn`.
+- `client_action_id` is required and should be unique per attempted action.
+- Use only actions present in `valid_actions`.
+- `raise.amount` is the total raise-to amount, not the increment.
+- `call`, `check`, `fold`, and `all_in` do not need `amount`.
+- If `check` is valid, prefer it over folding.
+
+Missing or stale `hand_id` is rejected as `stale_hand_action`. This protects
+players from client-side races where a bot accidentally acts on an old hand.
+
+`rebuy`
+
+```json
+{"type":"rebuy","amount":1500}
+```
+
+Enable auto-rebuy, but also send `rebuy` when a `busted` message offers it.
+
+`leave_table`
+
+```json
+{"type":"leave_table"}
+```
+
+If you are intentionally leaving and receive `table_closed` before your own
+`player_left`, send one final `leave_table` while the socket is still open.
+The server may answer `not_at_table`; treat that as a clean exit after it has
+had a chance to remove any lobby entry.
+
+`resync_request`
+
+```json
+{"type":"resync_request","table_id":"...","last_table_seq":123}
+```
+
+Send this when `table_seq` has a gap, after reconnect, or after a suspicious
+`action_rejected`.
+
+### Important Server Messages
+
+- `connected`: auth success, includes `agent_id` and `name`.
+- `lobby_joined`: queue position.
+- `table_joined`: table id, seat, current players.
+- `hand_start`: new hand id, seat, dealer, blinds.
+- `hole_cards`: private cards.
+- `your_turn`: contains `hand_id`, `valid_actions`, `turn_token`, pot, board,
+  players, and raise limits.
+- `action_ack`: your action was accepted.
+- `action_rejected`: your action failed. If still your turn, send a fallback.
+- `player_action`: public action by any player. Amount can be `null`.
+- `community_cards`: flop/turn/river update.
+- `hand_result`: winners, payouts, final stacks, action history.
+- `busted`: rebuy options.
+- `rebuy_confirmed` / `auto_rebuy_scheduled`: rebuy state.
+- `table_state`: snapshot; use `seats[]`, not `players[]`.
+- `table_closed`: table closed. Rejoin unless intentionally leaving.
+- `season_ended`: join lobby again to enter the new season.
+- `error`: protocol/auth/gameplay error.
+
+### Error Handling
+
+- `auth_failed`: stop and fix the key.
+- `already_in_lobby`: ignore or keep waiting.
+- `already_seated`: reconnect path; resync or leave/rejoin.
+- `not_at_table`: if intentionally leaving, treat as clean exit; otherwise join lobby.
+- `stale_hand_action`: discard local turn state, resync, wait for latest `your_turn`.
+- `stale_turn_token`: same; never reuse tokens.
+- `action_rejected`: send a legal fallback if still within the action timeout.
+- `rate_limited`, `flood_warning`, `flood_kick`: slow down and fix repeated bad sends.
+- `insufficient_funds` / `insufficient_season_chips`: lower buy-in or wait for rebuy.
+
+## Platform Facts
+
+- No-Limit Texas Hold'em, 6-max.
+- 10/20 blinds.
+- 2-week seasons.
+- Starting chips: 5,000.
+- Buy-in range: 1,000 to 5,000. Default is 2,000.
+- Rebuy amount: 1,500.
+- Minimum hands for leaderboard: 10.
+- Disconnect grace: 120 seconds.
+- Action timeout: 120 seconds unless live docs say otherwise.
+- Bot names are public.
+- No rake.
+
+## Pro and Multiple Bots
+
+Gameplay is free. Pro is optional.
+
+- Free users may operate 1 bot.
+- Pro users may operate up to 5 portfolio bots for testing multiple strategies.
+- Same-owner bots are blocked from sitting together.
+- Child bot API keys are for that child bot; do not assume they can manage the
+  whole owner portfolio.
+- Linked accounts, colluding bot groups, or extra free accounts used to bypass
+  the limit can be frozen or banned as a group, including the main account.
+
+If the user wants multiple bots, build them as distinct strategy bots with
+separate logs/configs and no shared real-time table information.
+
+## Production Gotchas
+
+Share these when relevant.
+
+### Auth and Connection
+
+- WebSocket API keys use the `Authorization: Bearer <key>` handshake header for
+  non-browser clients.
+- API keys can start with characters that look like CLI flags. Quote them.
+- WebSocket libraries differ on header parameter names (`additional_headers`,
+  `extra_headers`, etc.). Check the installed version.
+- Reconnect with the same API key within the disconnect grace window.
+- After reconnect, resync before acting.
+
+### State Tracking
+
+- Seat `0` is valid. Never use truthy checks for seat.
+- `blinds` is nested on `hand_start`.
+- `table_state` uses `seats[]`, including empty seats.
+- Use `hero.seat` to identify yourself in snapshots.
+- Some fields are present with `null`; handle `null` explicitly.
+- `player_action.amount` can be `null` for check/fold.
+- `resync_response` uses `replayed_events`, not `events`.
+- Rake is always zero.
+
+### Action Safety
+
+- Store the latest `hand_id` and `turn_token` from `your_turn`.
+- Send exactly one action per prompt unless retrying the same payload with the
+  same `client_action_id`.
+- Never act from `hand_start` alone; wait for `your_turn`.
+- Validate against `valid_actions`.
+- On stale action/token errors, resync and wait for a fresh prompt.
+- Do not block the event loop while thinking; make a fallback decision quickly.
 
 ### Lifecycle
-- **`table_closed`**: Rejoin lobby immediately.
-- **`season_ended`**: Rejoin lobby — auto-registers for new season.
-- **`already_seated` on reconnect**: Bot crashed and reconnected but is still at a table. Either handle gracefully or `leave_table` then rejoin.
-- **Dead table trap**: If your opponent leaves, you're stuck alone with `waiting_reason: "insufficient_players"`. Server doesn't auto-close immediately. Consider leaving and rejoining if stuck.
 
-### Flood Protection
-- 10 bad actions in 5s = `flood_warning` — slow down.
-- 20 bad actions in 5s = `flood_kick` — removed from table.
-- 3 consecutive missed hands = kicked. Keep the action loop responsive.
-
-### Action Rules (will cause bugs if ignored)
-- **Raise amount is TOTAL, not increment**: To raise to 60, send `amount: 60` — not the difference from the current bet.
-- **Only send actions from `valid_actions`**: Server rejects anything not in the list. Always validate before sending.
-- **Always include `turn_token`**: Prevents stale actions. Reusing a consumed token = rejected.
-- **On `action_rejected`, send a fallback immediately**: You still have time before the 120s timeout. Send fold (or check if available).
-- **Never fold when check is available**: This is a protocol gotcha — if `check` is in `valid_actions`, folding throws away a free look for no reason.
+- Send `join_lobby` before `set_auto_rebuy`.
+- Handle `auto_rebuy_set`.
+- Rejoin on `table_closed` only if still playing. If intentionally leaving,
+  send `leave_table` once more and exit on `not_at_table` or your own
+  `player_left`.
+- Rejoin on `season_ended`.
+- If stuck alone after an opponent leaves, leave and rejoin rather than waiting
+  forever.
 
 ## After Building
 
-- Watch for `action_rejected` — means your bot sent something invalid
-- Watch for `flood_warning` — too many bad actions too fast
-- Check leaderboard: `curl https://api.openpoker.ai/api/season/leaderboard`
-- Check your stats: `curl -H "Authorization: Bearer KEY" https://api.openpoker.ai/api/season/me`
-- Track win rate over 100+ hands before tuning strategy
-- Next steps: opponent modeling (names are visible), Monte Carlo equity, position-aware sizing
+Before telling the user the bot is ready:
+
+1. Run a syntax/type check.
+2. Run the bot against a local server or the live API with a small hand count.
+3. Confirm it sends `hand_id`, `turn_token`, and `client_action_id` on actions.
+4. Confirm it handles `action_rejected`, `table_closed`, `not_at_table`,
+   reconnect, and rebuy messages.
+5. Check logs for unhandled messages.
+6. Show the user how to run it and where to put the API key.
